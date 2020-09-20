@@ -49,23 +49,6 @@ class Node:
         """
         return str(self.label)
 
-class Attribute:
-    def __init__(self, label):
-        self.label = label
-        self.val0_pos = 0   # How many positive examples a "0" value appears in
-        self.val0_neg = 0   # How many negative examples a "0" value appears in
-        self.val1_pos = 0   # How many positive examples a "1" value appears in
-        self.val1_neg = 0   # How many negative examples a "1" value appears in
-
-    def getTotalVal0(self):
-        return self.val0_pos + self.val0_neg
-
-    def getTotalVal1(self):
-        return self.val1_pos + self.val1_neg
-
-    def getTotal(self):
-        return self.getTotalVal0() + self.getTotalVal1();
-
 def printy(node):
     if node:
         print(node)
@@ -75,30 +58,59 @@ def printy(node):
             printy(node.right)
     return
 
-# Get the label (i.e. attribute name) that has the highest information gain
-def information_gain_heuristic(s, attr_dict):
+# Get the label (i.e. attribute name) with the highest information gain.
+#
+# In this version, only use a Pandas dataframe. Don't use Attribute objects or
+# a dict container.
+def information_gain_heuristic(s, attr_list, df):
     gain_list = []
-    for attr in attr_dict:
-        gain_list.append(information_gain(s, attr_dict[attr]))
+    for attr in attr_list:
+        gain_list.append(information_gain(s, attr, df))
     return max(gain_list, key=lambda item:item[1])[0]
 
-def information_gain(s, attr):
+# Get the information gain for an attribute.
+#
+# This version uses Pandas directly, without using my Attribute
+# class. In this version, s and attr are ONLY labels. Note that df (the Pandas
+# dataframe) is a new parameter.
+def information_gain(s, attr, df):
+    s_pos = len(df.loc[(df[s] == 1)])
+    s_neg = len(df.loc[(df[s] == 0)])
+    s_total = len(df.index)
+    attr_val0_pos = len(df.loc[(df[s] == 1) & df[attr] == 0])
+    attr_val0_neg = len(df.loc[(df[s] == 0) & df[attr] == 0])
+    attr_val0_total = len(df.loc[(df[attr] == 0)])
+    attr_val1_pos = len(df.loc[(df[s] == 1) & df[attr] == 1])
+    attr_val1_neg = len(df.loc[(df[s] == 0) & df[attr] == 1])
+    attr_val1_total = len(df.loc[(df[attr] == 1)])
+    attr_total = len(df.index)
     # The entropy of the entire set
-    entropy_s = get_entropy(s.label, s.getTotalVal1(), s.getTotalVal0(), s.getTotal())
+    entropy_s = get_entropy(s, s_pos, s_neg, s_total)
     # The entropy of the subset that has "0" as a value for the attribute
-    entropy_attr_0 = get_entropy(attr.label, attr.val0_pos, attr.val0_neg, attr.getTotalVal0())
+    entropy_attr_0 = get_entropy(attr, attr_val0_pos, attr_val0_neg, attr_val0_total)
     # The entropy of the subset that has "1" as a value for the attribute
-    entropy_attr_1 = get_entropy(attr.label, attr.val1_pos, attr.val1_neg, attr.getTotalVal1())
+    entropy_attr_1 = get_entropy(attr, attr_val1_pos, attr_val1_neg, attr_val1_total)
     # Subtract from the set's entropy the entropy of each value multiplied by its proporition in the set
-    gain = entropy_s[1] - (attr.getTotalVal0()/attr.getTotal()) * entropy_attr_0[1] - (attr.getTotalVal1()/attr.getTotal()) * entropy_attr_1[1]
+    gain = entropy_s[1] - (attr_val0_total/attr_total) * entropy_attr_0[1] - (attr_val1_total/attr_total) * entropy_attr_1[1]
     # Return the label of the attribute and its gain
-    return attr.label, gain
+    return attr, gain
+
 
 def get_entropy(node_label, val1_instances, val0_instances, total):
     """The formula for entropy is Entropy = -p_1 * log_2(p_1) - p_0 * log_2(p_0)"""
     """As per Mitchell p. 56, 0 log 0 is defined as zero """
-    entropy = (-1 * val1_instances/total * math.log2(val1_instances/total if val1_instances/total > 0 else 1)) - \
-              (val0_instances/total * math.log2(val0_instances/total if val0_instances/total > 0 else 1))
+    try:
+        entropy = (-1 * val1_instances/total * math.log2(val1_instances/total if val1_instances/total > 0 else 1)) - \
+                  (val0_instances/total * math.log2(val0_instances/total if val0_instances/total > 0 else 1))
+    # I'm getting an error where I have more attributes set to 0 or 1 than I
+    # have total rows.
+    except ZeroDivisionError as e:
+        print("val1_instances: " + str(val1_instances))
+        print("val0_instances: " + str(val0_instances))
+        print("total: " + str(total))
+        print("node: " + node_label)
+        print(e)
+        sys.exit()
     return node_label, entropy
 
 # examples_list     A pandas dataframe
@@ -118,25 +130,10 @@ def id3(examples_list, target_attribute, attributes_list):
     elif (not attributes_list):
         root.label = examples_list[target_attribute].mode()[0]
     else:
-        A = random.choice(attributes_list) # For testing. Swap with info_gain
-        #attr_dict = get_example_data(examples_list)
-        #class_attr = attr_dict[target_attribute]
-        #del attr_dict[target_attribute]
-        #A = information_gain_heuristic(class_attr, attr_dict)
+        #A = random.choice(attributes_list) # For testing. Swap with info_gain
+        A = information_gain_heuristic(target_attribute, attributes_list, examples_list)
         root.label = A
         for i in [0,1]:
-            '''
-            new_node = Node()
-            examples_list_vi = examples_list.loc[examples_list[A] == i]
-            if (examples_list_vi.empty):
-                new_node.label = examples_list[target_attribute].mode()[0]
-                root.insert(new_node)
-            else:
-                root.label = A
-                trimmed_attributes = copy.deepcopy(attributes_list) # Do I really need deepcopy?
-                trimmed_attributes.remove(A)
-                root.insert(id3(examples_list_vi,target_attribute,trimmed_attributes))
-            '''
             new_branch = Node()
             new_branch.label = str(i)
             examples_list_vi = examples_list.loc[examples_list[A] == i]
@@ -146,39 +143,11 @@ def id3(examples_list, target_attribute, attributes_list):
                 new_branch.insert(new_leaf)
                 root.insert(new_branch)
             else:
-                trimmed_attributes = copy.deepcopy(attributes_list) # Do I really need deepcopy?
+                trimmed_attributes = copy.deepcopy(attributes_list)
                 trimmed_attributes.remove(A)
                 new_branch.insert(id3(examples_list_vi,target_attribute,trimmed_attributes))
                 root.insert(new_branch)
     return root
-
-def get_example_data(dataset):
-    column_names = dataset.columns
-    class_name = column_names[-1]
-    classification = dataset[class_name]
-    attr_dict = {}
-    for col in column_names:
-        current_column = dataset[col]
-        attr_dict[col] = Attribute(col)
-        attr_dict[col].label = col
-        for i in range(len(current_column)):
-            value = current_column[i]
-            if (value == 0 and classification[i] == 0):
-                count = attr_dict[col].val0_neg
-                attr_dict[col].val0_neg = count + 1
-            elif (value == 0 and classification[i] == 1):
-                count = attr_dict[col].val0_pos
-                attr_dict[col].val0_pos = count + 1
-            elif (value == 1 and classification[i] == 0):
-                count = attr_dict[col].val1_neg
-                attr_dict[col].val1_neg = count + 1
-            elif (value == 1 and classification[i] == 1):
-                count = attr_dict[col].val1_pos
-                attr_dict[col].val1_pos = count + 1
-            else:
-                sys.stderr.write('ILLEGAL VALUE FOUND IN CLASS DATA\n')
-                sys.exit()
-    return attr_dict
 
 # get command line arguments ************ UNCOMMENT AFTER FINISHED DEVELOPING *********
 # l = sys.argv[0]
@@ -205,30 +174,6 @@ test_df = pd.read_csv(test_set)
 micro_set = 'data_sets2/data_sets2/micro_set.csv'
 micro_df = pd.read_csv(micro_set)
 
-#attribute_labels_list, val1_instances_list, val0_instances_list, total_instances_list = get_attribute_labels(train_df)
-#print(attribute_labels_list)
-#print(val1_instances_list)
-#print(train_df)
-
-"""
-attr_dict = get_example_data(train_df)
-# Separate the class attribute
-class_attr = attr_dict["Class"]
-del attr_dict["Class"]
-gain_list = []
-for attr in attr_dict:
-    print("%s: 0+:%i  0-:%i  1+:%i  1-:%i  Gain: %f" % (attr_dict[attr].label,
-          attr_dict[attr].val0_pos, attr_dict[attr].val0_neg,
-          attr_dict[attr].val1_pos, attr_dict[attr].val1_neg,
-          information_gain(class_attr, attr_dict[attr])[1]))
-    gain_list.append(information_gain(class_attr, attr_dict[attr]))
-for label, gain in gain_list:
-    print(label + ": " + str(gain))
-#print(max(gain_list, key=lambda item:item[1]))
-print(information_gain_heuristic(class_attr, attr_dict))
-"""
-
-#tree = id3(train_df, "Class", list(train_df.columns[0:-1]))
-tree = id3(micro_df, "Class", list(micro_df.columns[0:-1]))
-#print(tree.printout(tree))
+tree = id3(train_df, "Class", list(train_df.columns[0:-1]))
+#tree = id3(micro_df, "Class", list(micro_df.columns[0:-1]))
 print(tree)
