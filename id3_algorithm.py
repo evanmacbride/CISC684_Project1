@@ -14,13 +14,13 @@ following two heuristics for selecting the next attribute.
 df = pd.read_csv('data_sets2/data_sets2/training_set.csv')
 
 
-def get_entropy(node_label, positive_instances, negative_instances, total):
+def get_entropy(node_label, val1_instances, val0_instances, total):
     """The formula for entropy is Entropy = -p_1 * log_2(p_1) - p_0 * log_2(p_0)"""
-    entropy = (-1 * positive_instances/total * math.log2(positive_instances/total)) - \
-              (negative_instances/total * math.log2(negative_instances/total))
+    entropy = (-1 * val1_instances/total * math.log2(val1_instances/total)) - \
+              (val0_instances/total * math.log2(val0_instances/total))
     return node_label, entropy
 
-
+# Matt's original
 def get_attribute_labels(dataset):
     column_names = dataset.columns
 
@@ -49,7 +49,9 @@ def get_attribute_labels(dataset):
 
     return attribute_labels_list, positive_instances_list, negative_instances_list, total_instances_list
 
+def information_gain(s, attr):
 
+    return ''
 
 def information_gain_heuristic():
     return ''

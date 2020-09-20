@@ -1,6 +1,6 @@
 import sys
 import pandas as pd
-from CISC684_Project1.id3_algorithm import *
+from id3_algorithm import *
 
 # get command line arguments ************ UNCOMMENT AFTER FINISHED DEVELOPING *********
 # l = sys.argv[0]
@@ -26,20 +26,26 @@ test_df = pd.read_csv(test_set)
 
 # perform ID3 algorithm
 # First, get the attribute label, total number of 1s, 0s, and the total number of values for each column
-attribute_labels, attribute_positives, attribute_negatives, attribute_totals = get_attribute_labels(train_df)
+#attribute_labels, attribute_positives, attribute_negatives, attribute_totals = get_attribute_labels(train_df)
+
+attribute_labels, attribute_val1s, attribute_val0s, attribute_totals = get_attribute_labels(train_df)
 
 # Next, get the output variable's (Class variable) data
 class_label = attribute_labels[len(attribute_labels) - 1]
-positive_class_instances = attribute_positives[len(attribute_positives) - 1]
-negative_class_instances = attribute_negatives[len(attribute_negatives) - 1]
+positive_class_instances = attribute_val1s[len(attribute_val1s) - 1]
+negative_class_instances = attribute_val0s[len(attribute_val0s) - 1]
 total = attribute_totals[len(attribute_totals) - 1]
+
+for i in range(0, len(attribute_labels)):
+    print(attribute_labels[i], ", 1: ", attribute_val1s[i], ", 0: ",
+          attribute_val0s[i], ", Total:", attribute_totals[i])
 
 # For every attribute:
 #   a.) Calculate entropy
 entropy_of_attributes = []
 for i in range(len(attribute_labels)):
-    entropy_of_attributes.append(get_entropy(attribute_labels[i], attribute_positives[i],
-                                             attribute_negatives[i], attribute_totals[i]))
+    entropy_of_attributes.append(get_entropy(attribute_labels[i], attribute_val1s[i],
+                                             attribute_val0s[i], attribute_totals[i]))
 
 # Get the entropy for the Class
 class_entropy = entropy_of_attributes[len(entropy_of_attributes) - 1]
@@ -50,3 +56,13 @@ class_entropy = entropy_of_attributes[len(entropy_of_attributes) - 1]
 
 # if to_print == 'yes':
 #     print_tree()
+
+# Printouts for Evan...
+print("Class: ", class_label, "Positive: ", positive_class_instances,
+      "Negative: ", negative_class_instances, "Total", total, "\n")
+
+print("Attr", "Entropy\n")
+
+for attr, entr in entropy_of_attributes:
+    print(attr, ": ", entr)
+### End of my printouts
